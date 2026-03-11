@@ -278,4 +278,5 @@ while True:
 
         print("No deal found")
 
-    time.sleep(3600)
+    time.sleep(1800)
+
