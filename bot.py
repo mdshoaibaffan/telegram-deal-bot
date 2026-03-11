@@ -3,16 +3,18 @@ import requests
 import random
 import time
 import html
+import re
 from datetime import datetime
 from bs4 import BeautifulSoup
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL = "@LootDealsDaily2026"
 
+AFFILIATE_TAG = "dailykitchenh-21"
+
 HEADERS = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-"Accept-Language": "en-US,en;q=0.9",
-"Connection": "keep-alive"
+"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+"Accept-Language": "en-US,en;q=0.9"
 }
 
 posted_links = set()
@@ -23,15 +25,15 @@ current_day = datetime.now().day
 # TELEGRAM FUNCTIONS
 # -----------------------------------
 
-def send_message(text):
+def send_photo(photo, caption):
 
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
 
     payload = {
         "chat_id": CHANNEL,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": False
+        "photo": photo,
+        "caption": caption,
+        "parse_mode": "HTML"
     }
 
     response = requests.post(url, data=payload)
@@ -61,17 +63,38 @@ def pin_message(message_id):
 
 
 # -----------------------------------
-# AMAZON SCRAPER (FIXED)
+# AMAZON LINK CLEANER
+# -----------------------------------
+
+def clean_amazon_link(link):
+
+    match = re.search(r"/dp/([A-Z0-9]{10})", link)
+
+    if match:
+        asin = match.group(1)
+        return f"https://www.amazon.in/dp/{asin}?tag={AFFILIATE_TAG}"
+
+    return link
+
+
+# -----------------------------------
+# SCRAPE AMAZON DEALS
 # -----------------------------------
 
 def scrape_amazon_deals():
 
     urls = [
+
+        # Today's deals
+        "https://www.amazon.in/gp/goldbox",
+        "https://www.amazon.in/deals",
+
+        # Lightning deals
+        "https://www.amazon.in/gp/goldbox?dealType=lightningDeals",
+
+        # fallback bestsellers
         "https://www.amazon.in/gp/bestsellers/electronics",
-        "https://www.amazon.in/gp/bestsellers/kitchen",
-        "https://www.amazon.in/gp/bestsellers/home-improvement",
-        "https://www.amazon.in/gp/bestsellers/computers",
-        "https://www.amazon.in/gp/bestsellers/toys"
+        "https://www.amazon.in/gp/bestsellers/kitchen"
     ]
 
     url = random.choice(urls)
@@ -80,7 +103,7 @@ def scrape_amazon_deals():
 
     soup = BeautifulSoup(page.text, "lxml")
 
-    items = soup.select(".zg-grid-general-faceout")
+    items = soup.select("div[data-asin]")
 
     deals = []
 
@@ -88,33 +111,66 @@ def scrape_amazon_deals():
 
         try:
 
-            title_tag = item.select_one("div._cDEzb_p13n-sc-css-line-clamp-3_g3dy1")
-            link_tag = item.select_one("a.a-link-normal")
+            asin = item.get("data-asin")
 
-            if not title_tag or not link_tag:
+            if not asin:
+                continue
+
+            title_tag = item.select_one("span.a-size-base-plus")
+            price_tag = item.select_one("span.a-price-whole")
+            mrp_tag = item.select_one("span.a-price.a-text-price span.a-offscreen")
+            img_tag = item.select_one("img")
+
+            if not title_tag:
                 continue
 
             title = html.escape(title_tag.text.strip())
 
-            link = "https://www.amazon.in" + link_tag.get("href")
+            link = f"https://www.amazon.in/dp/{asin}?tag={AFFILIATE_TAG}"
 
             if link in posted_links:
                 continue
 
-            price_tag = item.select_one(".p13n-sc-price")
+            image = None
+            if img_tag:
+                image = img_tag.get("src")
 
-            price = "Check Price"
-
+            price = None
             if price_tag:
-                price = price_tag.text.strip()
+                price = "₹" + price_tag.text.strip()
 
-            discount = "🔥 Trending Product"
+            mrp = None
+            if mrp_tag:
+                mrp = mrp_tag.text.strip()
+
+            discount = ""
+
+            if price and mrp:
+
+                try:
+
+                    price_num = float(price.replace("₹","").replace(",",""))
+                    mrp_num = float(mrp.replace("₹","").replace(",",""))
+
+                    off = int(((mrp_num - price_num) / mrp_num) * 100)
+
+                    discount = f"🔥 {off}% OFF"
+
+                except:
+
+                    discount = "🔥 Trending Product"
+
+            else:
+
+                discount = "🔥 Trending Product"
 
             deals.append({
                 "title": title,
-                "price": price,
+                "price": price if price else "Check Price",
+                "mrp": mrp,
                 "discount": discount,
-                "link": link
+                "link": link,
+                "image": image
             })
 
         except:
@@ -124,7 +180,7 @@ def scrape_amazon_deals():
 
 
 # -----------------------------------
-# PICK BEST DEAL
+# PICK DEAL
 # -----------------------------------
 
 def get_deal():
@@ -147,6 +203,17 @@ def get_deal():
 
 def format_message(deal, deal_of_day=False):
 
+    if deal["mrp"]:
+
+        price_block = f"""
+💰 <b>Deal Price:</b> {deal['price']}
+🏷 <b>MRP:</b> {deal['mrp']}
+"""
+
+    else:
+
+        price_block = f"💰 <b>Price:</b> {deal['price']}"
+
     if deal_of_day:
 
         message = f"""
@@ -154,13 +221,13 @@ def format_message(deal, deal_of_day=False):
 
 <b>{deal['title']}</b>
 
-💰 Price: {deal['price']}
+{price_block}
 
 {deal['discount']}
 
 ⚡ Limited Time Offer
 
-🛒 <b>Buy Now</b>
+🛒 <b>Buy Now 👉</b>
 {deal['link']}
 """
 
@@ -171,13 +238,13 @@ def format_message(deal, deal_of_day=False):
 
 <b>{deal['title']}</b>
 
-💰 Price: {deal['price']}
+{price_block}
 
 {deal['discount']}
 
 ⚠️ Price may increase anytime
 
-🛒 Grab Deal 👇
+🛒 <b>Grab Deal 👉</b>
 {deal['link']}
 """
 
@@ -191,44 +258,35 @@ def format_message(deal, deal_of_day=False):
 print("Bot started...")
 
 
-# Deal of the day first
 deal = get_deal()
 
 if deal:
 
     msg = format_message(deal, True)
 
-    response = send_message(msg)
+    response = send_photo(deal["image"], msg)
 
     if response:
         message_id = response["result"]["message_id"]
         pin_message(message_id)
         print("Deal of the day posted and pinned")
-    else:
-        print("Failed to send Deal of the Day")
 
 else:
 
     print("No deal found for Deal of the Day")
 
 
-# first extra deal
 deal = get_deal()
 
 if deal:
 
     msg = format_message(deal)
 
-    send_message(msg)
+    send_photo(deal["image"], msg)
 
     print("First extra deal posted")
 
-else:
 
-    print("No deal found for First extra post")
-
-
-# hourly deals
 while True:
 
     today = datetime.now().day
@@ -236,7 +294,6 @@ while True:
     if today != current_day:
 
         posted_links.clear()
-
         current_day = today
 
         deal = get_deal()
@@ -245,14 +302,11 @@ while True:
 
             msg = format_message(deal, True)
 
-            response = send_message(msg)
+            response = send_photo(deal["image"], msg)
 
             if response:
                 message_id = response["result"]["message_id"]
                 pin_message(message_id)
-                print("New day Deal of the Day posted")
-            else:
-                print("Failed to send new Deal of the Day")
 
     else:
 
@@ -262,12 +316,13 @@ while True:
 
             msg = format_message(deal)
 
-            send_message(msg)
+            send_photo(deal["image"], msg)
 
             print("Posted:", deal["title"])
 
         else:
 
-            print("No deal found, retrying next cycle")
+            print("No deal found")
 
-    time.sleep(3600)
+    # TESTING MODE (2 minutes)
+    time.sleep(120)
