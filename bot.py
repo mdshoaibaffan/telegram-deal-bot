@@ -21,6 +21,9 @@ HEADERS = {
 posted_links = set()
 current_day = datetime.now().day
 
+# Sequential deal queue
+deal_queue = []
+
 
 # -----------------------------------
 # TELEGRAM FUNCTIONS
@@ -64,7 +67,7 @@ def pin_message(message_id):
 
 
 # -----------------------------------
-# SCRAPER
+# AMAZON SCRAPER
 # -----------------------------------
 
 def scrape_amazon_deals():
@@ -106,9 +109,6 @@ def scrape_amazon_deals():
             title = html.escape(title_tag.text.strip())
 
             link = f"https://www.amazon.in/dp/{asin}?tag={AFFILIATE_TAG}"
-
-            if link in posted_links:
-                continue
 
             img_tag = item.select_one("img.s-image")
 
@@ -165,21 +165,26 @@ def scrape_amazon_deals():
 
 
 # -----------------------------------
-# PICK DEAL
+# SEQUENTIAL DEAL PICKER
 # -----------------------------------
 
 def get_deal():
 
-    deals = scrape_amazon_deals()
+    global deal_queue
 
-    if not deals:
-        return None
+    if not deal_queue:
+        deal_queue = scrape_amazon_deals()
 
-    deal = random.choice(deals)
+    while deal_queue:
 
-    posted_links.add(deal["link"])
+        deal = deal_queue.pop(0)
 
-    return deal
+        if deal["link"] not in posted_links:
+
+            posted_links.add(deal["link"])
+            return deal
+
+    return None
 
 
 # -----------------------------------
@@ -280,34 +285,21 @@ while True:
 
         posted_links.clear()
         current_day = today
+        deal_queue.clear()
 
-        deal = get_deal()
+    deal = get_deal()
 
-        if deal:
+    if deal:
 
-            msg = format_message(deal, True)
+        msg = format_message(deal)
 
-            response = send_photo(deal["image"], msg)
+        send_photo(deal["image"], msg)
 
-            if response:
-                message_id = response["result"]["message_id"]
-                pin_message(message_id)
+        print("Posted:", deal["title"])
 
     else:
 
-        deal = get_deal()
+        print("No deal found")
 
-        if deal:
-
-            msg = format_message(deal)
-
-            send_photo(deal["image"], msg)
-
-            print("Posted:", deal["title"])
-
-        else:
-
-            print("No deal found")
-
-    # TESTING MODE
+    # 2 minute testing interval
     time.sleep(120)
