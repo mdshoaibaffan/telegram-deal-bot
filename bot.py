@@ -22,12 +22,16 @@ posted_links = set()
 deal_queue = []
 current_day = datetime.now().day
 
+# High order Amazon categories
 categories = [
-"https://www.amazon.in/s?i=electronics&s=price-asc-rank",
+
+"https://www.amazon.in/s?i=shoes&s=price-asc-rank",
+"https://www.amazon.in/s?i=fashion&s=price-asc-rank",
+"https://www.amazon.in/s?i=stripbooks&s=price-asc-rank",
+"https://www.amazon.in/s?i=beauty&s=price-asc-rank",
 "https://www.amazon.in/s?i=kitchen&s=price-asc-rank",
-"https://www.amazon.in/s?i=computers&s=price-asc-rank",
-"https://www.amazon.in/s?i=home-improvement&s=price-asc-rank",
-"https://www.amazon.in/s?i=toys&s=price-asc-rank"
+"https://www.amazon.in/s?i=electronics&s=price-asc-rank"
+
 ]
 
 category_index = 0
@@ -49,6 +53,7 @@ def send_photo(photo, caption):
     }
 
     response = requests.post(url, data=payload)
+
     data = response.json()
 
     print("Telegram response:", data)
@@ -73,7 +78,7 @@ def pin_message(message_id):
 
 
 # -----------------------------------
-# SCRAPER
+# AMAZON SCRAPER
 # -----------------------------------
 
 def scrape_amazon_deals():
@@ -169,6 +174,7 @@ def get_deal():
     global deal_queue
 
     if not deal_queue:
+
         deal_queue = scrape_amazon_deals()
 
     while deal_queue:
@@ -178,6 +184,7 @@ def get_deal():
         if deal["link"] not in posted_links:
 
             posted_links.add(deal["link"])
+
             return deal
 
     return None
@@ -260,10 +267,9 @@ if deal:
     if response:
         message_id = response["result"]["message_id"]
         pin_message(message_id)
-        print("Deal of the day posted and pinned")
 
 
-# SECOND POST (Immediate)
+# SECOND POST
 
 deal = get_deal()
 
@@ -272,8 +278,6 @@ if deal:
     msg = format_message(deal)
 
     send_photo(deal["image"], msg)
-
-    print("Second deal posted")
 
 
 # -----------------------------------
@@ -317,5 +321,4 @@ while True:
 
             print("No deal found")
 
-    # 1 hour interval
     time.sleep(3600)
