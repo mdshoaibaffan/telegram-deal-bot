@@ -182,25 +182,35 @@ print("Bot started...")
 # Deal of the day first
 deal = get_deal()
 
-msg = format_message(deal, True)
+if deal:
 
-response = send_message(msg)
+    msg = format_message(deal, True)
 
-message_id = response["result"]["message_id"]
+    response = send_message(msg)
 
-pin_message(message_id)
+    message_id = response["result"]["message_id"]
 
-print("Deal of the day posted and pinned")
+    pin_message(message_id)
+
+    print("Deal of the day posted and pinned")
+
+else:
+    print("No deal found for Deal of the Day")
 
 
 # first extra deal
 deal = get_deal()
 
-msg = format_message(deal)
+if deal:
 
-send_message(msg)
+    msg = format_message(deal)
 
-print("First extra deal posted")
+    send_message(msg)
+
+    print("First extra deal posted")
+
+else:
+    print("No deal found for first extra post")
 
 
 # hourly deals
@@ -216,15 +226,20 @@ while True:
 
         deal = get_deal()
 
-        msg = format_message(deal, True)
+        if deal:
 
-        response = send_message(msg)
+            msg = format_message(deal, True)
 
-        message_id = response["result"]["message_id"]
+            response = send_message(msg)
 
-        pin_message(message_id)
+            message_id = response["result"]["message_id"]
 
-        print("New day Deal of the Day posted")
+            pin_message(message_id)
+
+            print("New day Deal of the Day posted")
+
+        else:
+            print("No deal found for new day")
 
     else:
 
@@ -237,5 +252,8 @@ while True:
             send_message(msg)
 
             print("Posted:", deal["title"])
+
+        else:
+            print("No deal found, retrying next cycle")
 
     time.sleep(3600)
