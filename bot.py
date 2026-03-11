@@ -12,8 +12,10 @@ CHANNEL = "@LootDealsDaily2026"
 AFFILIATE_TAG = "dailykitchenh-21"
 
 HEADERS = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-"Accept-Language": "en-US,en;q=0.9"
+"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+"Accept-Language": "en-US,en;q=0.9",
+"Accept-Encoding": "gzip, deflate, br",
+"Connection": "keep-alive"
 }
 
 posted_links = set()
@@ -83,7 +85,7 @@ def scrape_amazon_deals():
 
     soup = BeautifulSoup(page.text, "lxml")
 
-    items = soup.select("div.s-result-item[data-asin]")
+    items = soup.select("div.s-result-item")
 
     deals = []
 
@@ -93,7 +95,7 @@ def scrape_amazon_deals():
 
             asin = item.get("data-asin")
 
-            if not asin:
+            if asin is None or asin == "":
                 continue
 
             title_tag = item.select_one("h2 span")
@@ -307,5 +309,5 @@ while True:
 
             print("No deal found")
 
-    # TESTING MODE (2 minutes)
+    # TESTING MODE
     time.sleep(120)
