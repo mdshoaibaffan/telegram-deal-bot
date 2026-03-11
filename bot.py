@@ -9,7 +9,10 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL = "@LootDealsDaily2026"
 
 HEADERS = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+"Accept-Language": "en-US,en;q=0.9",
+"Accept-Encoding": "gzip, deflate, br",
+"Connection": "keep-alive"
 }
 
 posted_links = set()
@@ -56,11 +59,11 @@ def pin_message(message_id):
 def scrape_amazon_deals():
 
     urls = [
-        "https://www.amazon.in/deals",
-        "https://www.amazon.in/gp/goldbox",
-        "https://www.amazon.in/s?k=electronics+deal",
-        "https://www.amazon.in/s?k=kitchen+gadgets+deal",
-        "https://www.amazon.in/s?k=home+utility+products"
+        "https://www.amazon.in/s?k=electronics&tag=dailykitchenh-21",
+        "https://www.amazon.in/s?k=kitchen+gadgets&tag=dailykitchenh-21",
+        "https://www.amazon.in/s?k=home+utility&tag=dailykitchenh-21",
+        "https://www.amazon.in/s?k=mobile+accessories&tag=dailykitchenh-21",
+        "https://www.amazon.in/s?k=summer+products&tag=dailykitchenh-21"
     ]
 
     url = random.choice(urls)
@@ -75,38 +78,56 @@ def scrape_amazon_deals():
 
     for item in items:
 
-        title_tag = item.select_one("h2 span")
-        price_tag = item.select_one(".a-price-whole")
-        discount_tag = item.select_one(".s-coupon-highlight-color")
+        try:
 
-        link_tag = item.select_one("a.a-link-normal")
+            title_tag = item.select_one("h2 span")
+            link_tag = item.select_one("h2 a")
 
-        if not title_tag or not link_tag:
+            price_tag = item.select_one(".a-price-whole")
+            mrp_tag = item.select_one(".a-price.a-text-price span.a-offscreen")
+
+            if not title_tag or not link_tag:
+                continue
+
+            title = title_tag.text.strip()
+
+            link = "https://www.amazon.in" + link_tag.get("href")
+
+            if link in posted_links:
+                continue
+
+            price = "Check Price"
+
+            if price_tag:
+                price = "₹" + price_tag.text.strip()
+
+            discount = ""
+
+            if price_tag and mrp_tag:
+
+                try:
+
+                    price_val = float(price_tag.text.replace(",", ""))
+                    mrp_val = float(mrp_tag.text.replace("₹","").replace(",", ""))
+
+                    if mrp_val > price_val:
+
+                        percent = int((mrp_val - price_val) / mrp_val * 100)
+
+                        discount = f"🔥 {percent}% OFF"
+
+                except:
+                    pass
+
+            deals.append({
+                "title": title,
+                "price": price,
+                "discount": discount,
+                "link": link
+            })
+
+        except:
             continue
-
-        title = title_tag.text.strip()
-
-        link = "https://www.amazon.in" + link_tag.get("href")
-
-        if link in posted_links:
-            continue
-
-        price = "Check Price"
-
-        if price_tag:
-            price = "₹" + price_tag.text.strip()
-
-        discount = ""
-
-        if discount_tag:
-            discount = discount_tag.text.strip()
-
-        deals.append({
-            "title": title,
-            "price": price,
-            "discount": discount,
-            "link": link
-        })
 
     return deals
 
@@ -134,6 +155,9 @@ def get_deal():
 # -----------------------------------
 
 def format_message(deal, deal_of_day=False):
+
+    if not deal:
+        return None
 
     if deal_of_day:
 
@@ -195,6 +219,7 @@ if deal:
     print("Deal of the day posted and pinned")
 
 else:
+
     print("No deal found for Deal of the Day")
 
 
@@ -210,7 +235,8 @@ if deal:
     print("First extra deal posted")
 
 else:
-    print("No deal found for first extra post")
+
+    print("No deal found for First extra post")
 
 
 # hourly deals
@@ -238,9 +264,6 @@ while True:
 
             print("New day Deal of the Day posted")
 
-        else:
-            print("No deal found for new day")
-
     else:
 
         deal = get_deal()
@@ -254,6 +277,7 @@ while True:
             print("Posted:", deal["title"])
 
         else:
+
             print("No deal found, retrying next cycle")
 
     time.sleep(3600)
