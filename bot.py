@@ -11,7 +11,6 @@ CHANNEL = "@LootDealsDaily2026"
 HEADERS = {
 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 "Accept-Language": "en-US,en;q=0.9",
-"Accept-Encoding": "gzip, deflate, br",
 "Connection": "keep-alive"
 }
 
@@ -53,17 +52,17 @@ def pin_message(message_id):
 
 
 # -----------------------------------
-# AMAZON SCRAPER
+# AMAZON SCRAPER (FIXED)
 # -----------------------------------
 
 def scrape_amazon_deals():
 
     urls = [
-        "https://www.amazon.in/s?k=electronics&tag=dailykitchenh-21",
-        "https://www.amazon.in/s?k=kitchen+gadgets&tag=dailykitchenh-21",
-        "https://www.amazon.in/s?k=home+utility&tag=dailykitchenh-21",
-        "https://www.amazon.in/s?k=mobile+accessories&tag=dailykitchenh-21",
-        "https://www.amazon.in/s?k=summer+products&tag=dailykitchenh-21"
+        "https://www.amazon.in/gp/bestsellers/electronics",
+        "https://www.amazon.in/gp/bestsellers/kitchen",
+        "https://www.amazon.in/gp/bestsellers/home-improvement",
+        "https://www.amazon.in/gp/bestsellers/computers",
+        "https://www.amazon.in/gp/bestsellers/toys"
     ]
 
     url = random.choice(urls)
@@ -72,7 +71,7 @@ def scrape_amazon_deals():
 
     soup = BeautifulSoup(page.text, "lxml")
 
-    items = soup.select("div[data-component-type='s-search-result']")
+    items = soup.select(".zg-grid-general-faceout")
 
     deals = []
 
@@ -80,11 +79,8 @@ def scrape_amazon_deals():
 
         try:
 
-            title_tag = item.select_one("h2 span")
-            link_tag = item.select_one("h2 a")
-
-            price_tag = item.select_one(".a-price-whole")
-            mrp_tag = item.select_one(".a-price.a-text-price span.a-offscreen")
+            title_tag = item.select_one("div._cDEzb_p13n-sc-css-line-clamp-3_g3dy1")
+            link_tag = item.select_one("a.a-link-normal")
 
             if not title_tag or not link_tag:
                 continue
@@ -96,28 +92,14 @@ def scrape_amazon_deals():
             if link in posted_links:
                 continue
 
+            price_tag = item.select_one(".p13n-sc-price")
+
             price = "Check Price"
 
             if price_tag:
-                price = "₹" + price_tag.text.strip()
+                price = price_tag.text.strip()
 
-            discount = ""
-
-            if price_tag and mrp_tag:
-
-                try:
-
-                    price_val = float(price_tag.text.replace(",", ""))
-                    mrp_val = float(mrp_tag.text.replace("₹","").replace(",", ""))
-
-                    if mrp_val > price_val:
-
-                        percent = int((mrp_val - price_val) / mrp_val * 100)
-
-                        discount = f"🔥 {percent}% OFF"
-
-                except:
-                    pass
+            discount = "🔥 Trending Product"
 
             deals.append({
                 "title": title,
@@ -155,9 +137,6 @@ def get_deal():
 # -----------------------------------
 
 def format_message(deal, deal_of_day=False):
-
-    if not deal:
-        return None
 
     if deal_of_day:
 
