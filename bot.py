@@ -9,7 +9,6 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHANNEL = "@LootDealsDaily2026"
 
 AFFILIATE_TAG = "dailykitchenh-21"
-
 MIN_DISCOUNT = 40
 
 HEADERS = {
@@ -24,13 +23,11 @@ deal_queue = []
 current_day = datetime.now().day
 
 categories = [
-
 "https://www.amazon.in/s?i=electronics&s=price-asc-rank",
 "https://www.amazon.in/s?i=kitchen&s=price-asc-rank",
 "https://www.amazon.in/s?i=computers&s=price-asc-rank",
 "https://www.amazon.in/s?i=home-improvement&s=price-asc-rank",
 "https://www.amazon.in/s?i=toys&s=price-asc-rank"
-
 ]
 
 category_index = 0
@@ -54,10 +51,9 @@ def send_photo(photo, caption):
     response = requests.post(url, data=payload)
     data = response.json()
 
-    print("Telegram API response:", data)
+    print("Telegram response:", data)
 
     if not data.get("ok"):
-        print("Telegram Error:", data)
         return None
 
     return data
@@ -119,9 +115,7 @@ def scrape_amazon_deals():
 
             img_tag = item.select_one("img.s-image")
 
-            image = None
-            if img_tag:
-                image = img_tag.get("src")
+            image = img_tag.get("src") if img_tag else None
 
             price_tag = item.select_one("span.a-price span.a-offscreen")
 
@@ -132,9 +126,7 @@ def scrape_amazon_deals():
 
             mrp_tag = item.select_one("span.a-price.a-text-price span.a-offscreen")
 
-            mrp = None
-            if mrp_tag:
-                mrp = mrp_tag.text.strip()
+            mrp = mrp_tag.text.strip() if mrp_tag else None
 
             discount = None
 
@@ -145,9 +137,7 @@ def scrape_amazon_deals():
                     price_num = float(price.replace("₹","").replace(",",""))
                     mrp_num = float(mrp.replace("₹","").replace(",",""))
 
-                    off = int(((mrp_num - price_num) / mrp_num) * 100)
-
-                    discount = off
+                    discount = int(((mrp_num - price_num) / mrp_num) * 100)
 
                 except:
                     continue
@@ -179,7 +169,6 @@ def get_deal():
     global deal_queue
 
     if not deal_queue:
-
         deal_queue = scrape_amazon_deals()
 
     while deal_queue:
@@ -189,7 +178,6 @@ def get_deal():
         if deal["link"] not in posted_links:
 
             posted_links.add(deal["link"])
-
             return deal
 
     return None
@@ -259,6 +247,8 @@ def format_message(deal, deal_of_day=False):
 print("Bot started...")
 
 
+# FIRST POST (Deal of the Day)
+
 deal = get_deal()
 
 if deal:
@@ -268,15 +258,12 @@ if deal:
     response = send_photo(deal["image"], msg)
 
     if response:
-
         message_id = response["result"]["message_id"]
-
         pin_message(message_id)
-
         print("Deal of the day posted and pinned")
 
 
-# first extra deal
+# SECOND POST (Immediate)
 
 deal = get_deal()
 
@@ -286,10 +273,12 @@ if deal:
 
     send_photo(deal["image"], msg)
 
-    print("First extra deal posted")
+    print("Second deal posted")
 
 
-# hourly loop
+# -----------------------------------
+# HOURLY LOOP
+# -----------------------------------
 
 while True:
 
@@ -298,9 +287,7 @@ while True:
     if today != current_day:
 
         posted_links.clear()
-
         deal_queue.clear()
-
         current_day = today
 
         deal = get_deal()
@@ -312,10 +299,7 @@ while True:
             response = send_photo(deal["image"], msg)
 
             if response:
-
-                message_id = response["result"]["message_id"]
-
-                pin_message(message_id)
+                pin_message(response["result"]["message_id"])
 
     else:
 
@@ -327,7 +311,7 @@ while True:
 
             send_photo(deal["image"], msg)
 
-            print("Posted:", deal["title"])
+            print("Hourly deal posted:", deal["title"])
 
         else:
 
