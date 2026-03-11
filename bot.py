@@ -2,6 +2,7 @@ import os
 import requests
 import random
 import time
+import html
 from datetime import datetime
 from bs4 import BeautifulSoup
 
@@ -35,7 +36,15 @@ def send_message(text):
 
     response = requests.post(url, data=payload)
 
-    return response.json()
+    data = response.json()
+
+    print("Telegram API response:", data)
+
+    if not data.get("ok"):
+        print("Telegram Error:", data)
+        return None
+
+    return data
 
 
 def pin_message(message_id):
@@ -67,7 +76,7 @@ def scrape_amazon_deals():
 
     url = random.choice(urls)
 
-    page = requests.get(url, headers=HEADERS)
+    page = requests.get(url, headers=HEADERS, timeout=10)
 
     soup = BeautifulSoup(page.text, "lxml")
 
@@ -85,7 +94,7 @@ def scrape_amazon_deals():
             if not title_tag or not link_tag:
                 continue
 
-            title = title_tag.text.strip()
+            title = html.escape(title_tag.text.strip())
 
             link = "https://www.amazon.in" + link_tag.get("href")
 
@@ -191,11 +200,12 @@ if deal:
 
     response = send_message(msg)
 
-    message_id = response["result"]["message_id"]
-
-    pin_message(message_id)
-
-    print("Deal of the day posted and pinned")
+    if response:
+        message_id = response["result"]["message_id"]
+        pin_message(message_id)
+        print("Deal of the day posted and pinned")
+    else:
+        print("Failed to send Deal of the Day")
 
 else:
 
@@ -237,11 +247,12 @@ while True:
 
             response = send_message(msg)
 
-            message_id = response["result"]["message_id"]
-
-            pin_message(message_id)
-
-            print("New day Deal of the Day posted")
+            if response:
+                message_id = response["result"]["message_id"]
+                pin_message(message_id)
+                print("New day Deal of the Day posted")
+            else:
+                print("Failed to send new Deal of the Day")
 
     else:
 
