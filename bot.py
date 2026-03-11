@@ -3,7 +3,6 @@ import requests
 import random
 import time
 import html
-import re
 from datetime import datetime
 from bs4 import BeautifulSoup
 
@@ -63,38 +62,19 @@ def pin_message(message_id):
 
 
 # -----------------------------------
-# AMAZON LINK CLEANER
-# -----------------------------------
-
-def clean_amazon_link(link):
-
-    match = re.search(r"/dp/([A-Z0-9]{10})", link)
-
-    if match:
-        asin = match.group(1)
-        return f"https://www.amazon.in/dp/{asin}?tag={AFFILIATE_TAG}"
-
-    return link
-
-
-# -----------------------------------
-# SCRAPE AMAZON DEALS
+# SCRAPER
 # -----------------------------------
 
 def scrape_amazon_deals():
 
     urls = [
 
-        # Today's deals
-        "https://www.amazon.in/gp/goldbox",
-        "https://www.amazon.in/deals",
+        "https://www.amazon.in/s?i=electronics&s=price-asc-rank",
+        "https://www.amazon.in/s?i=kitchen&s=price-asc-rank",
+        "https://www.amazon.in/s?i=computers&s=price-asc-rank",
+        "https://www.amazon.in/s?i=home-improvement&s=price-asc-rank",
+        "https://www.amazon.in/s?i=toys&s=price-asc-rank"
 
-        # Lightning deals
-        "https://www.amazon.in/gp/goldbox?dealType=lightningDeals",
-
-        # fallback bestsellers
-        "https://www.amazon.in/gp/bestsellers/electronics",
-        "https://www.amazon.in/gp/bestsellers/kitchen"
     ]
 
     url = random.choice(urls)
@@ -103,7 +83,7 @@ def scrape_amazon_deals():
 
     soup = BeautifulSoup(page.text, "lxml")
 
-    items = soup.select("div[data-asin]")
+    items = soup.select("div.s-result-item[data-asin]")
 
     deals = []
 
@@ -116,10 +96,7 @@ def scrape_amazon_deals():
             if not asin:
                 continue
 
-            title_tag = item.select_one("span.a-size-base-plus")
-            price_tag = item.select_one("span.a-price-whole")
-            mrp_tag = item.select_one("span.a-price.a-text-price span.a-offscreen")
-            img_tag = item.select_one("img")
+            title_tag = item.select_one("h2 span")
 
             if not title_tag:
                 continue
@@ -131,13 +108,19 @@ def scrape_amazon_deals():
             if link in posted_links:
                 continue
 
+            img_tag = item.select_one("img.s-image")
+
             image = None
             if img_tag:
                 image = img_tag.get("src")
 
+            price_tag = item.select_one("span.a-price span.a-offscreen")
+
             price = None
             if price_tag:
-                price = "₹" + price_tag.text.strip()
+                price = price_tag.text.strip()
+
+            mrp_tag = item.select_one("span.a-price.a-text-price span.a-offscreen")
 
             mrp = None
             if mrp_tag:
