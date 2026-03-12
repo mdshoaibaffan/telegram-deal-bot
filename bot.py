@@ -57,7 +57,7 @@ def send_photo(photo, caption):
 
     data = response.json()
 
-    print(data)
+    print("Telegram response:", data)
 
     if not data.get("ok"):
         return None
@@ -130,6 +130,8 @@ def scrape_deals():
 
                 price = price_tag.text.strip()
 
+                price_num = float(price.replace("₹","").replace(",",""))
+
                 mrp_tag = item.select_one("span.a-price.a-text-price span.a-offscreen")
 
                 mrp = mrp_tag.text.strip() if mrp_tag else None
@@ -137,12 +139,9 @@ def scrape_deals():
                 discount = None
 
                 if mrp:
-
                     try:
 
-                        price_num = float(price.replace("₹","").replace(",",""))
                         mrp_num = float(mrp.replace("₹","").replace(",",""))
-
                         discount = int(((mrp_num - price_num) / mrp_num) * 100)
 
                     except:
@@ -179,7 +178,6 @@ def format_message(deal):
     category_link = ""
 
     if "fashion" in deal["category"] or "shoes" in deal["category"]:
-
         category_link = "\n\n👕 <b>More Fashion Deals:</b>\nhttps://www.amazon.in/s?i=fashion"
 
     message = f"""
@@ -207,6 +205,8 @@ print("Bot started")
 while True:
 
     deals = scrape_deals()
+
+    print("Deals found:", len(deals))
 
     for deal in deals:
 
