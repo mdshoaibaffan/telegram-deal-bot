@@ -2,7 +2,6 @@ import os
 import requests
 import time
 import html
-from datetime import datetime
 from bs4 import BeautifulSoup
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -11,13 +10,15 @@ CHANNEL = "@LootDealsDaily2026"
 AFFILIATE_TAG = "dailykitchenh-21"
 
 HEADERS = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-"Accept-Language": "en-US,en;q=0.9"
+"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+"Accept-Language": "en-US,en;q=0.9",
+"Accept-Encoding": "gzip, deflate, br",
+"Connection": "keep-alive",
+"Upgrade-Insecure-Requests": "1"
 }
 
 posted_links = set()
 last_pinned_message = None
-
 
 categories = [
 
@@ -98,7 +99,9 @@ def scrape_deals():
 
             soup = BeautifulSoup(page.text, "lxml")
 
-            items = soup.select("div.s-result-item")
+            items = soup.select(
+                'div.s-result-item[data-component-type="s-search-result"]'
+            )
 
             for item in items:
 
@@ -120,7 +123,6 @@ def scrape_deals():
                     continue
 
                 img_tag = item.select_one("img.s-image")
-
                 image = img_tag.get("src") if img_tag else None
 
                 price_tag = item.select_one("span.a-price span.a-offscreen")
@@ -139,11 +141,10 @@ def scrape_deals():
                 discount = None
 
                 if mrp:
-                    try:
 
+                    try:
                         mrp_num = float(mrp.replace("₹","").replace(",",""))
                         discount = int(((mrp_num - price_num) / mrp_num) * 100)
-
                     except:
                         pass
 
@@ -178,6 +179,7 @@ def format_message(deal):
     category_link = ""
 
     if "fashion" in deal["category"] or "shoes" in deal["category"]:
+
         category_link = "\n\n👕 <b>More Fashion Deals:</b>\nhttps://www.amazon.in/s?i=fashion"
 
     message = f"""
