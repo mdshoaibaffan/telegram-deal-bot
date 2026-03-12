@@ -23,13 +23,13 @@ last_pinned=None
 
 categories=[
 
-"https://www.amazon.in/gp/bestsellers",
-"https://www.amazon.in/gp/bestsellers/electronics",
-"https://www.amazon.in/gp/bestsellers/kitchen",
-"https://www.amazon.in/gp/bestsellers/books",
-"https://www.amazon.in/gp/bestsellers/shoes",
-"https://www.amazon.in/gp/movers-and-shakers",
-"https://www.amazon.in/deals"
+"https://www.amazon.in/s?k=electronics&sort=review-rank",
+"https://www.amazon.in/s?k=shoes&sort=review-rank",
+"https://www.amazon.in/s?k=kitchen&sort=review-rank",
+"https://www.amazon.in/s?k=books&sort=review-rank",
+"https://www.amazon.in/s?k=mobile+accessories&sort=review-rank",
+"https://www.amazon.in/s?k=home+products&sort=review-rank",
+"https://www.amazon.in/s?k=beauty+products&sort=review-rank"
 
 ]
 
