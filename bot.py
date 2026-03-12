@@ -10,13 +10,12 @@ CHANNEL = "@LootDealsDaily2026"
 AFFILIATE_TAG = "dailykitchenh-21"
 
 HEADERS = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
 "Accept-Language": "en-US,en;q=0.9"
 }
 
 posted_links = set()
 last_pinned_message = None
-
 
 categories = [
 
@@ -94,7 +93,9 @@ def scrape_deals():
 
             for item in items:
 
-                title_tag = item.select_one("div._cDEzb_p13n-sc-css-line-clamp-3_g3dy1")
+                title_tag = item.select_one(
+                    "div._cDEzb_p13n-sc-css-line-clamp-3_g3dy1"
+                )
 
                 if not title_tag:
                     continue
@@ -106,27 +107,59 @@ def scrape_deals():
                 if not link_tag:
                     continue
 
-                link = "https://www.amazon.in" + link_tag.get("href")
+                product_link = "https://www.amazon.in" + link_tag.get("href")
 
-                if link in posted_links:
+                if product_link in posted_links:
                     continue
 
                 image_tag = item.select_one("img")
 
                 image = image_tag.get("src") if image_tag else None
 
-                price_tag = item.select_one(".p13n-sc-price")
 
-                price = price_tag.text.strip() if price_tag else "Check Price"
+                # OPEN PRODUCT PAGE
+
+                product_page = requests.get(product_link, headers=HEADERS, timeout=10)
+
+                product_soup = BeautifulSoup(product_page.text, "lxml")
+
+                price_tag = product_soup.select_one(
+                    "#priceblock_dealprice, #priceblock_ourprice, .a-price .a-offscreen"
+                )
+
+                mrp_tag = product_soup.select_one(
+                    ".priceBlockStrikePriceString, .a-text-price .a-offscreen"
+                )
+
+                if not price_tag:
+                    continue
+
+                price = price_tag.text.strip()
+
+                mrp = mrp_tag.text.strip() if mrp_tag else None
+
+                discount = None
+
+                try:
+
+                    price_num = float(price.replace("₹","").replace(",",""))
+
+                    if mrp:
+
+                        mrp_num = float(mrp.replace("₹","").replace(",",""))
+
+                        discount = int(((mrp_num - price_num) / mrp_num) * 100)
+
+                except:
+                    pass
 
                 deals.append({
                     "title": title,
                     "price": price,
-                    "mrp": None,
-                    "discount": None,
-                    "link": link + f"?tag={AFFILIATE_TAG}",
-                    "image": image,
-                    "category": url
+                    "mrp": mrp,
+                    "discount": discount,
+                    "link": product_link + f"?tag={AFFILIATE_TAG}",
+                    "image": image
                 })
 
         except:
@@ -139,12 +172,20 @@ def scrape_deals():
 
 def format_message(deal):
 
+    price_block = f"💰 <b>Price:</b> {deal['price']}"
+
+    if deal["mrp"]:
+        price_block += f"\n🏷 <b>MRP:</b> {deal['mrp']}"
+
+    if deal["discount"]:
+        price_block += f"\n🔥 <b>{deal['discount']}% OFF</b>"
+
     message = f"""
 🔥 <b>HOT DEAL</b>
 
 <b>{deal['title']}</b>
 
-💰 <b>Price:</b> {deal['price']}
+{price_block}
 
 🛒 <b>Buy Now 👉</b>
 {deal['link']}
@@ -172,6 +213,10 @@ while True:
         msg = format_message(deal)
 
         response = send_photo(deal["image"], msg)
+
+        if response and deal["discount"] and deal["discount"] >= 90:
+
+            pin_message(response["result"]["message_id"])
 
         break
 
