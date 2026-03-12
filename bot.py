@@ -242,16 +242,11 @@ def detect_deal():
     save_prices(price_db)
 
 
-    # PRIORITY 1 → PRICE DROP
-
     if price_drop_deals:
 
         price_drop_deals.sort(reverse=True,key=lambda x:x[0])
 
         return price_drop_deals[0][1]
-
-
-    # PRIORITY 2 → HIGHEST DISCOUNT
 
     if discount_deals:
 
@@ -293,18 +288,60 @@ def format_message(deal):
 
 
 # -------------------------
-# MAIN LOOP
+# MAIN PROGRAM
 # -------------------------
 
 print("Deal bot started")
+
+FIRST_SCAN_TIME=300
+
+start=time.time()
+
+best_deal=None
+best_score=0
+
+print("Analyzing deals for first post...")
+
+while time.time()-start < FIRST_SCAN_TIME:
+
+    deal=detect_deal()
+
+    if deal:
+
+        score=deal["discount"] if deal["discount"] else 0
+
+        if score > best_score:
+
+            best_deal=deal
+            best_score=score
+
+    time.sleep(20)
+
+
+if best_deal:
+
+    msg=format_message(best_deal)
+
+    response=send_photo(best_deal["image"],msg)
+
+    if response and best_deal["discount"] and best_deal["discount"]>=90:
+
+        pin_message(response["result"]["message_id"])
+
+    posted_links.add(best_deal["link"])
+
+    print("First deal posted")
+
+else:
+
+    print("No deal found in first analysis window")
+
 
 while True:
 
     deal=detect_deal()
 
     if deal:
-
-        posted_links.add(deal["link"])
 
         msg=format_message(deal)
 
@@ -313,6 +350,8 @@ while True:
         if response and deal["discount"] and deal["discount"]>=90:
 
             pin_message(response["result"]["message_id"])
+
+        posted_links.add(deal["link"])
 
     else:
 
