@@ -11,8 +11,11 @@ CHANNEL = "@LootDealsDaily2026"
 AFFILIATE_TAG = "dailykitchenh-21"
 
 HEADERS = {
-"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-"Accept-Language": "en-US,en;q=0.9"
+"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+"Accept-Language": "en-US,en;q=0.9",
+"Accept-Encoding": "gzip, deflate, br",
+"Connection": "keep-alive",
+"Upgrade-Insecure-Requests": "1"
 }
 
 price_file = "price_history.json"
@@ -111,6 +114,8 @@ def scrape_products():
         try:
 
             page=requests.get(url,headers=HEADERS,timeout=10)
+
+            print("Page length:",len(page.text))
 
             soup=BeautifulSoup(page.text,"lxml")
 
