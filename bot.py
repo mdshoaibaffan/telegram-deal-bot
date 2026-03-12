@@ -12,10 +12,7 @@ AFFILIATE_TAG = "dailykitchenh-21"
 
 HEADERS = {
 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-"Accept-Language": "en-US,en;q=0.9",
-"Accept-Encoding": "gzip, deflate, br",
-"Connection": "keep-alive",
-"Upgrade-Insecure-Requests": "1"
+"Accept-Language": "en-US,en;q=0.9"
 }
 
 price_file = "price_history.json"
@@ -26,13 +23,13 @@ last_pinned=None
 
 categories=[
 
-"https://www.amazon.in/s?k=electronics&sort=review-rank",
-"https://www.amazon.in/s?k=shoes&sort=review-rank",
-"https://www.amazon.in/s?k=kitchen&sort=review-rank",
-"https://www.amazon.in/s?k=books&sort=review-rank",
-"https://www.amazon.in/s?k=mobile+accessories&sort=review-rank",
-"https://www.amazon.in/s?k=home+products&sort=review-rank",
-"https://www.amazon.in/s?k=beauty+products&sort=review-rank"
+"https://www.amazon.in/gp/bestsellers",
+"https://www.amazon.in/gp/bestsellers/electronics",
+"https://www.amazon.in/gp/bestsellers/kitchen",
+"https://www.amazon.in/gp/bestsellers/books",
+"https://www.amazon.in/gp/bestsellers/shoes",
+"https://www.amazon.in/gp/bestsellers/beauty",
+"https://www.amazon.in/gp/bestsellers/toys"
 
 ]
 
@@ -115,20 +112,23 @@ def scrape_products():
 
             page=requests.get(url,headers=HEADERS,timeout=10)
 
-            print("Page length:",len(page.text))
-
             soup=BeautifulSoup(page.text,"lxml")
 
-            products = soup.select('div[data-component-type="s-search-result"]')
+            items=soup.select(".zg-grid-general-faceout")
 
-            for item in products:
+            for item in items:
 
-                asin=item.get("data-asin")
+                link_tag=item.select_one("a.a-link-normal")
 
-                if not asin:
+                if not link_tag:
                     continue
 
-                link=f"https://www.amazon.in/dp/{asin}"
+                href=link_tag.get("href")
+
+                if not href:
+                    continue
+
+                link="https://www.amazon.in"+href
 
                 links.append(link)
 
@@ -188,7 +188,7 @@ def get_product(link):
 
         image=img.get("src") if img else None
 
-        asin=link.split("/dp/")[1]
+        asin=link.split("/dp/")[1] if "/dp/" in link else link
 
         return{
         "title":title,
