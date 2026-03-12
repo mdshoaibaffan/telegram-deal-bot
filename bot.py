@@ -17,11 +17,11 @@ HEADERS = {
 
 price_file = "price_history.json"
 
-posted_links = set()
-last_pinned_message = None
+posted_links=set()
+last_pinned=None
 
 
-categories = [
+categories=[
 
 "https://www.amazon.in/gp/bestsellers",
 "https://www.amazon.in/gp/bestsellers/electronics",
@@ -35,11 +35,10 @@ categories = [
 
 
 # -------------------------
-# PRICE DATABASE
+# PRICE HISTORY
 # -------------------------
 
 def load_prices():
-
     try:
         with open(price_file,"r") as f:
             return json.load(f)
@@ -47,12 +46,10 @@ def load_prices():
         return {}
 
 def save_prices(data):
-
     with open(price_file,"w") as f:
         json.dump(data,f)
 
-
-price_db = load_prices()
+price_db=load_prices()
 
 
 # -------------------------
@@ -82,32 +79,32 @@ def send_photo(photo,caption):
     return data
 
 
-def pin_message(message_id):
+def pin_message(msg_id):
 
-    global last_pinned_message
+    global last_pinned
 
-    if last_pinned_message:
+    if last_pinned:
 
         requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/unpinChatMessage",
-        data={"chat_id":CHANNEL,"message_id":last_pinned_message}
+        data={"chat_id":CHANNEL,"message_id":last_pinned}
         )
 
     requests.post(
     f"https://api.telegram.org/bot{BOT_TOKEN}/pinChatMessage",
-    data={"chat_id":CHANNEL,"message_id":message_id}
+    data={"chat_id":CHANNEL,"message_id":msg_id}
     )
 
-    last_pinned_message=message_id
+    last_pinned=msg_id
 
 
 # -------------------------
-# SCRAPER
+# SCRAPE PRODUCT LINKS
 # -------------------------
 
 def scrape_products():
 
-    products=[]
+    links=[]
 
     for url in categories:
 
@@ -117,51 +114,42 @@ def scrape_products():
 
             soup=BeautifulSoup(page.text,"lxml")
 
-            items=soup.select("a.a-link-normal")
+            for a in soup.select("a.a-link-normal"):
 
-            for link in items:
+                href=a.get("href")
 
-                href=link.get("href")
+                if href and "/dp/" in href:
 
-                if not href:
-                    continue
+                    asin=href.split("/dp/")[1][:10]
 
-                if "/dp/" not in href:
-                    continue
+                    link=f"https://www.amazon.in/dp/{asin}"
 
-                asin=href.split("/dp/")[1][:10]
-
-                product_link=f"https://www.amazon.in/dp/{asin}"
-
-                if product_link in posted_links:
-                    continue
-
-                products.append(product_link)
+                    links.append(link)
 
         except:
             continue
 
-    return list(set(products))
+    return list(set(links))
 
 
 # -------------------------
 # PRODUCT DETAILS
 # -------------------------
 
-def get_product_details(url):
+def get_product(link):
 
     try:
 
-        page=requests.get(url,headers=HEADERS,timeout=10)
+        page=requests.get(link,headers=HEADERS,timeout=10)
 
         soup=BeautifulSoup(page.text,"lxml")
 
-        title_tag=soup.select_one("#productTitle")
+        title=soup.select_one("#productTitle")
 
-        if not title_tag:
+        if not title:
             return None
 
-        title=html.escape(title_tag.text.strip())
+        title=html.escape(title.text.strip())
 
         price_tag=soup.select_one(".a-price .a-offscreen")
 
@@ -194,35 +182,37 @@ def get_product_details(url):
 
         image=img.get("src") if img else None
 
-        return {
+        asin=link.split("/dp/")[1]
+
+        return{
         "title":title,
         "price":price,
         "price_num":price_num,
         "mrp":mrp,
         "discount":discount,
         "image":image,
-        "link":url+f"?tag={AFFILIATE_TAG}",
-        "asin":url.split("/dp/")[1]
+        "link":link+f"?tag={AFFILIATE_TAG}",
+        "asin":asin
         }
 
     except:
-
         return None
 
 
 # -------------------------
-# DEAL DETECTION
+# DEAL DETECTOR
 # -------------------------
 
-def detect_best_deal():
+def detect_deal():
 
     links=scrape_products()
 
-    deals=[]
+    price_drop_deals=[]
+    discount_deals=[]
 
-    for link in links[:20]:
+    for link in links[:50]:
 
-        data=get_product_details(link)
+        data=get_product(link)
 
         if not data:
             continue
@@ -239,28 +229,37 @@ def detect_best_deal():
 
             drop=int(((old_price-price)/old_price)*100)
 
+            if drop>=25:
+
+                price_drop_deals.append((drop,data))
+
         price_db[asin]=price
 
-        save_prices(price_db)
-
-
-        score=0
-
         if data["discount"]:
-            score=data["discount"]
 
-        if drop:
-            score=max(score,drop)
+            discount_deals.append((data["discount"],data))
 
-        if score>=40:
-            deals.append((score,data))
+    save_prices(price_db)
 
-    if not deals:
-        return None
 
-    deals.sort(reverse=True,key=lambda x:x[0])
+    # PRIORITY 1 → PRICE DROP
 
-    return deals[0][1]
+    if price_drop_deals:
+
+        price_drop_deals.sort(reverse=True,key=lambda x:x[0])
+
+        return price_drop_deals[0][1]
+
+
+    # PRIORITY 2 → HIGHEST DISCOUNT
+
+    if discount_deals:
+
+        discount_deals.sort(reverse=True,key=lambda x:x[0])
+
+        return discount_deals[0][1]
+
+    return None
 
 
 # -------------------------
@@ -269,20 +268,20 @@ def detect_best_deal():
 
 def format_message(deal):
 
-    price_block=f"💰 <b>Price:</b> {deal['price']}"
+    block=f"💰 <b>Price:</b> {deal['price']}"
 
     if deal["mrp"]:
-        price_block+=f"\n🏷 <b>MRP:</b> {deal['mrp']}"
+        block+=f"\n🏷 <b>MRP:</b> {deal['mrp']}"
 
     if deal["discount"]:
-        price_block+=f"\n🔥 <b>{deal['discount']}% OFF</b>"
+        block+=f"\n🔥 <b>{deal['discount']}% OFF</b>"
 
-    message=f"""
+    msg=f"""
 🔥 <b>HOT DEAL</b>
 
 <b>{deal['title']}</b>
 
-{price_block}
+{block}
 
 🛒 <b>Buy Now 👉</b>
 {deal['link']}
@@ -290,7 +289,7 @@ def format_message(deal):
 #AmazonDeal #LootDeal
 """
 
-    return message
+    return msg
 
 
 # -------------------------
@@ -301,7 +300,7 @@ print("Deal bot started")
 
 while True:
 
-    deal=detect_best_deal()
+    deal=detect_deal()
 
     if deal:
 
@@ -317,6 +316,6 @@ while True:
 
     else:
 
-        print("No strong deal found")
+        print("No deals detected")
 
     time.sleep(1800)
