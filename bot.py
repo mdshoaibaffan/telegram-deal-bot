@@ -114,17 +114,18 @@ def scrape_products():
 
             soup=BeautifulSoup(page.text,"lxml")
 
-            for a in soup.select("a.a-link-normal"):
+            products = soup.select('div[data-component-type="s-search-result"]')
 
-                href=a.get("href")
+            for item in products:
 
-                if href and "/dp/" in href:
+                asin=item.get("data-asin")
 
-                    asin=href.split("/dp/")[1][:10]
+                if not asin:
+                    continue
 
-                    link=f"https://www.amazon.in/dp/{asin}"
+                link=f"https://www.amazon.in/dp/{asin}"
 
-                    links.append(link)
+                links.append(link)
 
         except:
             continue
